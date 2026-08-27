@@ -186,11 +186,23 @@ export function isStrictChord(token: string): boolean {
   return suffix.toLowerCase() in QUALITIES;
 }
 
+/**
+ * Removes the bar lines and repeat dots that chord grids hang off a chord.
+ * Sites write outros as "|Am D |G", so the bar arrives glued to the chord with
+ * no space; without this the whole token reads as neither chord nor bar.
+ * Only touched when a bar is actually present, so "Am:" is left alone.
+ */
+export function stripBars(token: string): string {
+  if (!/[|¦]/.test(token)) return token;
+  return token.replace(/^[|¦:]+/, "").replace(/[|¦:]+$/, "");
+}
+
 /** Tokens that legitimately share a line with chords. */
 const CHORD_LINE_NOISE = /^(?:[|:/%\-–—.()\[\]*]+|[xX]\d+|\d+[xX]|N\.?C\.?|\d+)$/;
 
 export function isChordLineToken(token: string): boolean {
-  return isStrictChord(token) || CHORD_LINE_NOISE.test(token.trim());
+  const bare = stripBars(token);
+  return isStrictChord(bare) || CHORD_LINE_NOISE.test(bare.trim()) || bare === "";
 }
 
 /** Drops parenthesised asides so only the chord tokens remain. */
@@ -209,7 +221,7 @@ export function looksLikeChordLine(line: string): boolean {
   if (!tokens.length) return false;
   let chords = 0;
   for (const t of tokens) {
-    if (isStrictChord(t)) chords++;
+    if (isStrictChord(stripBars(t))) chords++;
     else if (!isChordLineToken(t)) return false;
   }
   if (chords === 0) return false;

@@ -64,6 +64,24 @@ eq(
   "[C]   [G]  (let it ring)",
 );
 
+// Ultimate Guitar writes outros as "|[ch]Am[/ch] [ch]D[/ch] |[ch]G[/ch]", so the
+// bar ends up glued to the chord with no space between them.
+eq("bar glued to the chord", textToChordPro("|Am D |G C |"), "[Am] [D] [G] [C]");
+eq("trailing bars", textToChordPro("Am| C| G|"), "[Am] [C] [G]");
+eq("repeat dots around a chord", textToChordPro("|:Am D :|"), "[Am] [D]");
+eq(
+  "glued bars in an Ultimate Guitar outro",
+  ugContentToChordPro("|[ch]Am[/ch] [ch]D[/ch] |[ch]G[/ch] [ch]C[/ch] |[ch]Am[/ch] [ch]D[/ch] |[ch]G[/ch]   |"),
+  "[Am] [D] [G] [C] [Am] [D] [G]",
+);
+// A glued bar shifts the chord one column right; dropping it must not drag the
+// chord off the syllable it sat above.
+eq(
+  "glued bars above lyrics keep their column",
+  textToChordPro("|Am  D  |G\nHello there now"),
+  "H[Am]ello[D] the[G]re now",
+);
+
 console.log("Repeat markers…");
 function repeatOf(source: string) {
   const line = parseSheet(source).sections[0]?.lines[0];

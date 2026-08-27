@@ -2,7 +2,7 @@
  * Turns the two-line "chords above lyrics" layout used by tab sites into the
  * inline ChordPro form the app stores.
  */
-import { isStrictChord, looksLikeChordLine, stripAsides } from "./music";
+import { isStrictChord, looksLikeChordLine, stripAsides, stripBars } from "./music";
 
 interface RawLine {
   text: string;
@@ -15,9 +15,6 @@ const SECTION_WORDS =
 
 const SECTION_RE = new RegExp(`^[\\[(]?\\s*((?:${SECTION_WORDS})\\b[^\\]):]*)\\s*[\\])]?\\s*:?\\s*$`, "i");
 const BRACKET_HEADER_RE = /^\[([^\]]{1,40})\]$/;
-
-/** Bar lines and repeat signs: layout marks, not chords. */
-const BAR_TOKEN = /^[|¦:]+$/;
 
 /** Strips the marks that decorate a grid so the rest can be inspected. */
 function stripGridMarks(line: string): string {
@@ -58,11 +55,15 @@ function merge(chordLine: string, lyricLine: string): string {
   const chars: string[] = [...lyricLine.replace(/[[\]]/g, "")];
   // Insert from the right so earlier positions stay valid.
   for (const t of [...tokens].sort((a, b) => b.pos - a.pos)) {
-    while (chars.length < t.pos) chars.push(" ");
-    // Repeat marks and bar lines ride along as plain text; only real chords
-    // get bracketed, or "x2" would render as a chord.
-    if (BAR_TOKEN.test(t.text)) continue;
-    chars.splice(t.pos, 0, isStrictChord(t.text) ? `[${t.text}]` : t.text);
+    const bare = stripBars(t.text);
+    if (!bare) continue;
+    // A bar glued to the front of a chord pushes it one column right, so the
+    // chord's real column is where the chord text starts, not where the bar does.
+    const pos = t.pos + t.text.indexOf(bare);
+    while (chars.length < pos) chars.push(" ");
+    // Repeat marks like "x2" ride along as plain text; only real chords get
+    // bracketed, or they would render as chords.
+    chars.splice(pos, 0, isStrictChord(bare) ? `[${bare}]` : bare);
   }
   return chars.join("").trimEnd();
 }
@@ -90,7 +91,8 @@ function chordsOnly(chordLine: string): string {
   return chordLine
     .trim()
     .split(/\s+/)
-    .filter((t) => t && !BAR_TOKEN.test(t))
+    .map(stripBars)
+    .filter(Boolean)
     .map((t) => (isStrictChord(t) ? `[${t}]` : t))
     .join(" ");
 }
