@@ -84,15 +84,20 @@ piano is selected, because there is nothing for it to do.
 ## Checks
 
 ```bash
-npm run typecheck
+npm run check          # typecheck + both suites below
 npm run check:chords   # every chord shape must actually spell its chord
+npm run check:import   # entity decoding and chord-sheet conversion
 npm run build
 ```
 
-`check:chords` validates the hand-written shapes and then generates every
-quality on every root for every fretted instrument — around 1900 shapes —
+`check:chords` validates the hand-written and movable shapes, then generates
+every quality on every root for every fretted instrument — around 1850 shapes —
 asserting each one contains only chord tones, keeps its essential notes, and
 stays inside a four-fret span.
+
+`check:import` covers the scraping layer, mostly HTML entities: song pages are
+full of accents, and an entity the decoder doesn't know leaks through as raw
+`&Ccedil;` text.
 
 ## Layout
 

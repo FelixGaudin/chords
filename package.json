@@ -9,7 +9,9 @@
     "start": "next start -p 3000",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "check:chords": "tsc -p tsconfig.check.json && node -e \"require('fs').writeFileSync('.check/package.json','{\\\"type\\\":\\\"commonjs\\\"}')\" && node .check/scripts/check-chords.js"
+    "check:chords": "tsc -p tsconfig.check.json && node -e \"require('fs').writeFileSync('.check/package.json','{\\\"type\\\":\\\"commonjs\\\"}')\" && node .check/scripts/check-chords.js",
+    "check:import": "tsc -p tsconfig.check.json && node -e \"require('fs').writeFileSync('.check/package.json','{\\\"type\\\":\\\"commonjs\\\"}')\" && node .check/scripts/check-import.js",
+    "check": "npm run typecheck && npm run check:chords && npm run check:import"
   },
   "dependencies": {
     "next": "16.3.3",

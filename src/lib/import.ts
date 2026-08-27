@@ -50,23 +50,85 @@ async function fetchPage(url: string): Promise<{ body: string; contentType: stri
   return { body: await res.text(), contentType: res.headers.get("content-type") ?? "" };
 }
 
+/**
+ * Latin-1 entity names, in code-point order from 160 (nbsp) to 255 (yuml).
+ * Listing them positionally keeps the table honest — chord sites are full of
+ * accents, and a name we don't know leaks through as raw "&Ccedil;" text.
+ */
+const LATIN1_NAMES =
+  "nbsp iexcl cent pound curren yen brvbar sect uml copy ordf laquo not shy reg macr deg plusmn sup2 sup3 " +
+  "acute micro para middot cedil sup1 ordm raquo frac14 frac12 frac34 iquest Agrave Aacute Acirc Atilde " +
+  "Auml Aring AElig Ccedil Egrave Eacute Ecirc Euml Igrave Iacute Icirc Iuml ETH Ntilde Ograve Oacute " +
+  "Ocirc Otilde Ouml times Oslash Ugrave Uacute Ucirc Uuml Yacute THORN szlig agrave aacute acirc atilde " +
+  "auml aring aelig ccedil egrave eacute ecirc euml igrave iacute icirc iuml eth ntilde ograve oacute " +
+  "ocirc otilde ouml divide oslash ugrave uacute ucirc uuml yacute thorn yuml";
+
 const NAMED_ENTITIES: Record<string, string> = {
+  quot: '"',
   amp: "&",
+  apos: "'",
   lt: "<",
   gt: ">",
-  quot: '"',
-  apos: "'",
-  nbsp: " ",
-  "#39": "'",
+  OElig: "\u0152",
+  oelig: "\u0153",
+  Scaron: "\u0160",
+  scaron: "\u0161",
+  Yuml: "\u0178",
+  fnof: "\u0192",
+  circ: "\u02c6",
+  tilde: "\u02dc",
+  ensp: "\u2002",
+  emsp: "\u2003",
+  thinsp: "\u2009",
+  ndash: "\u2013",
+  mdash: "\u2014",
+  lsquo: "\u2018",
+  rsquo: "\u2019",
+  sbquo: "\u201a",
+  ldquo: "\u201c",
+  rdquo: "\u201d",
+  bdquo: "\u201e",
+  dagger: "\u2020",
+  Dagger: "\u2021",
+  bull: "\u2022",
+  hellip: "\u2026",
+  permil: "\u2030",
+  prime: "\u2032",
+  Prime: "\u2033",
+  lsaquo: "\u2039",
+  rsaquo: "\u203a",
+  oline: "\u203e",
+  frasl: "\u2044",
+  euro: "\u20ac",
+  trade: "\u2122",
+};
+LATIN1_NAMES.split(" ").forEach((name, i) => {
+  NAMED_ENTITIES[name] = String.fromCharCode(160 + i);
+});
+
+/**
+ * Pages served as Windows-1252 leak these as numeric references. Unicode calls
+ * 128-159 control characters, so without the remap a curly apostrophe imports
+ * as an invisible character. Browsers do the same substitution.
+ */
+const CP1252: Record<number, number> = {
+  128: 0x20ac, 130: 0x201a, 131: 0x0192, 132: 0x201e, 133: 0x2026, 134: 0x2020, 135: 0x2021,
+  136: 0x02c6, 137: 0x2030, 138: 0x0160, 139: 0x2039, 140: 0x0152, 142: 0x017d, 145: 0x2018,
+  146: 0x2019, 147: 0x201c, 148: 0x201d, 149: 0x2022, 150: 0x2013, 151: 0x2014, 152: 0x02dc,
+  153: 0x2122, 154: 0x0161, 155: 0x203a, 156: 0x0153, 158: 0x017e, 159: 0x0178,
 };
 
 export function decodeEntities(s: string): string {
-  return s.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (full, name: string) => {
+  return s.replace(/&(#[xX]?[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);/g, (full, name: string) => {
     if (name[0] === "#") {
-      const code = name[1] === "x" || name[1] === "X" ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10);
-      return Number.isFinite(code) ? String.fromCodePoint(code) : full;
+      const hex = name[1] === "x" || name[1] === "X";
+      const code = parseInt(hex ? name.slice(2) : name.slice(1), hex ? 16 : 10);
+      if (!Number.isFinite(code) || code < 0 || code > 0x10ffff) return full;
+      return String.fromCodePoint(CP1252[code] ?? code);
     }
-    return NAMED_ENTITIES[name.toLowerCase()] ?? full;
+    // Entity names are case-sensitive — &Eacute; and &eacute; are different
+    // letters — so an exact match has to win before any leniency.
+    return NAMED_ENTITIES[name] ?? NAMED_ENTITIES[name.toLowerCase()] ?? full;
   });
 }
 
