@@ -22,7 +22,7 @@ npm run build && npm start
 ### With Docker
 
 ```bash
-docker compose up -d --build      # http://localhost:3000
+docker compose up -d --build      # http://localhost:23647
 docker compose logs -f
 docker compose down
 ```
@@ -34,7 +34,7 @@ Two knobs, both optional:
 
 | Variable     | Default | Purpose                                        |
 | ------------ | ------- | ---------------------------------------------- |
-| `CHORDS_PORT` | `3000`  | Host port to publish                           |
+| `CHORDS_PORT` | `23647` | Host port to publish                           |
 | `CHORDS_UID`  | `1000`  | User the container runs as — must own `./data`  |
 | `CHORDS_GID`  | `1000`  | Group to match                                 |
 

@@ -5,7 +5,7 @@ services:
     container_name: chords
     restart: unless-stopped
     ports:
-      - "${CHORDS_PORT:-3000}:3000"
+      - "${CHORDS_PORT:-23647}:3000"
     # The library stays a folder of JSON files on the host, so it can be backed
     # up, synced or edited by hand exactly as it can outside Docker.
     volumes:
