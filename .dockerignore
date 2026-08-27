@@ -1,0 +1,13 @@
+node_modules
+.next
+.check
+data
+research
+*.tsbuildinfo
+.git
+.gitignore
+Dockerfile
+docker-compose.yml
+README.md
+AGENTS.md
+CLAUDE.md

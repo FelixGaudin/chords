@@ -1,0 +1,16 @@
+services:
+  chords:
+    build: .
+    image: chords:latest
+    container_name: chords
+    restart: unless-stopped
+    ports:
+      - "${CHORDS_PORT:-3000}:3000"
+    # The library stays a folder of JSON files on the host, so it can be backed
+    # up, synced or edited by hand exactly as it can outside Docker.
+    volumes:
+      - ./data:/data
+    # Run as the owner of ./data, or the container can't write to the mount.
+    user: "${CHORDS_UID:-1000}:${CHORDS_GID:-1000}"
+    environment:
+      CHORDS_DATA_DIR: /data/songs

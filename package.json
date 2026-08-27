@@ -1,0 +1,27 @@
+{
+  "name": "chords",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "check:chords": "tsc -p tsconfig.check.json && node -e \"require('fs').writeFileSync('.check/package.json','{\\\"type\\\":\\\"commonjs\\\"}')\" && node .check/scripts/check-chords.js"
+  },
+  "dependencies": {
+    "next": "16.3.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "tailwindcss": "4.3.3",
+    "typescript": "^5.9"
+  }
+}

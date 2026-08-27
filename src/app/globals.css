@@ -1,0 +1,147 @@
+@import "tailwindcss";
+
+/*
+ * A quiet, printed-songbook palette: warm paper, ink-black text, and a single
+ * amber accent reserved for chords so the eye finds them instantly.
+ */
+@theme {
+  /* Every colour is declared once; light-dark() picks the right side from the
+     root's colour-scheme, which the theme toggle flips. */
+  --color-paper: light-dark(#fbfaf8, #14140f);
+  --color-raised: light-dark(#ffffff, #1c1c19);
+  --color-ink: light-dark(#1a1917, #ebe8e1);
+  --color-muted: light-dark(#6b6862, #9d9890);
+  --color-faint: light-dark(#94908a, #77736c);
+  --color-rule: light-dark(#e4e0d9, #2c2b27);
+  --color-rule-strong: light-dark(#d3cec5, #3d3b36);
+  --color-accent: light-dark(#9a5518, #e0a058);
+  --color-accent-soft: light-dark(#f2e6d8, #302518);
+  --color-key: light-dark(#ffffff, #c8c4bb);
+  --color-key-alt: light-dark(#26251f, #17170f);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+:root {
+  color-scheme: light dark;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* ---- Chord sheet layout -------------------------------------------------
+ * Each lyric line is a wrapping row of word groups. A group never breaks
+ * internally, so a chord always stays glued to the syllable it belongs to,
+ * and long lines reflow cleanly on a phone instead of scrolling sideways.
+ */
+.sheet {
+  font-size: var(--sheet-size, 1rem);
+  line-height: 1.25;
+}
+
+.sheet-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  min-height: 1.4em;
+}
+
+.sheet-group {
+  display: inline-flex;
+  /* Units in a group are stacked chord-over-lyric and differ in height: one
+     with a chord is two rows, one without is a single row. Without this they
+     stretch and the bare word rides up level with the chords. */
+  align-items: flex-end;
+  min-width: 0;
+  white-space: pre;
+}
+
+.sheet-unit {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.sheet-chord {
+  font-family: var(--font-mono);
+  font-size: 0.82em;
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  color: var(--color-accent);
+  padding-right: 0.5em;
+  white-space: pre;
+  cursor: pointer;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.sheet-chord:hover,
+.sheet-chord:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  outline: none;
+}
+
+.sheet-lyric {
+  /* pre-wrap keeps the spacing that positions chords, while still letting an
+     over-long token (a pasted URL) break instead of widening the page. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-variant-ligatures: none;
+}
+
+/* A line with chords but no words (intros, turnarounds). */
+.sheet-line--chords .sheet-chord {
+  font-size: 0.9em;
+  padding-right: 0.9em;
+}
+
+.sheet-spacer {
+  height: 0.75em;
+}
+
+/* Hide the scrollbar on the horizontal chord-hint strip. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
+  .sheet-chord {
+    color: #000;
+    font-weight: 700;
+  }
+  .sheet-section {
+    break-inside: avoid;
+  }
+  @page {
+    margin: 14mm;
+  }
+}
