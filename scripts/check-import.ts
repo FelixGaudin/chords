@@ -3,6 +3,7 @@
  */
 import { decodeEntities } from "../src/lib/import";
 import { textToChordPro, ugContentToChordPro } from "../src/lib/convert";
+import { parseSheet } from "../src/lib/sheet";
 
 let failures = 0;
 function eq(label: string, actual: string, expected: string) {
@@ -38,6 +39,44 @@ eq(
   "[Am]Ça va déjà",
 );
 eq("chords above lyrics", textToChordPro("C       G\nHello there"), "[C]Hello th[G]ere");
+
+console.log("Chord grids…");
+// Bar lines are layout, not music: they shouldn't survive into the sheet.
+eq("bars stripped", textToChordPro("| Am | C | D | F |"), "[Am] [C] [D] [F]");
+eq("repeat barlines", textToChordPro("|: Am | C :|"), "[Am] [C]");
+eq("grid with repeat count", textToChordPro("| Em   | Em   | Am   | C    |  x2"), "[Em] [Em] [Am] [C] x2");
+// Dropping the bars must not shift the chords: Am sits at column 2 and C at
+// column 11, so they still land on the same letters they sat above.
+eq(
+  "bars above lyrics vanish without moving the chords",
+  textToChordPro("| Am     | C\nHello there now"),
+  "He[Am]llo there[C] now",
+);
+eq(
+  "bars in an Ultimate Guitar grid",
+  ugContentToChordPro("| [ch]Am[/ch] | [ch]C[/ch] | x2"),
+  "[Am] [C] x2",
+);
+// An aside is prose and keeps its spacing, unlike a bare grid.
+eq(
+  "aside still preserved",
+  ugContentToChordPro("[ch]C[/ch]   [ch]G[/ch]  (let it ring)"),
+  "[C]   [G]  (let it ring)",
+);
+
+console.log("Repeat markers…");
+function repeatOf(source: string) {
+  const line = parseSheet(source).sections[0]?.lines[0];
+  if (!line || line.kind !== "lyrics") return "not a lyric line";
+  const text = line.chunks.map((c) => c.text).join("").trim();
+  return `repeat=${line.repeat ?? "none"} chords=${line.chunks.map((c) => c.chord).filter(Boolean).join(",")} leftoverText=${JSON.stringify(text)}`;
+}
+eq("x2 becomes a repeat count", repeatOf("[Em] [Am] x2"), 'repeat=2 chords=Em,Am leftoverText=""');
+eq("2x spelling", repeatOf("[Em] [Am] 2x"), 'repeat=2 chords=Em,Am leftoverText=""');
+eq("parenthesised", repeatOf("[C] [G] (x4)"), 'repeat=4 chords=C,G leftoverText=""');
+eq("uppercase X", repeatOf("[C] [G] X3"), 'repeat=3 chords=C,G leftoverText=""');
+eq("no marker", repeatOf("[C] [G]"), 'repeat=none chords=C,G leftoverText=""');
+eq("lyrics are never a repeat", repeatOf("[C]I have x2 apples"), 'repeat=none chords=C leftoverText="I have x2 apples"');
 
 if (failures) {
   console.error(`\n${failures} failures.`);

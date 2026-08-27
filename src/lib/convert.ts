@@ -16,6 +16,14 @@ const SECTION_WORDS =
 const SECTION_RE = new RegExp(`^[\\[(]?\\s*((?:${SECTION_WORDS})\\b[^\\]):]*)\\s*[\\])]?\\s*:?\\s*$`, "i");
 const BRACKET_HEADER_RE = /^\[([^\]]{1,40})\]$/;
 
+/** Bar lines and repeat signs: layout marks, not chords. */
+const BAR_TOKEN = /^[|¦:]+$/;
+
+/** Strips the marks that decorate a grid so the rest can be inspected. */
+function stripGridMarks(line: string): string {
+  return line.replace(/[|¦]/g, " ").replace(/(?:^|\s)\(?(?:[xX]\s*\d{1,2}|\d{1,2}\s*[xX])\)?(?=\s|$)/g, " ");
+}
+
 function expandTabs(line: string, width = 4): string {
   let out = "";
   for (const ch of line) {
@@ -53,27 +61,38 @@ function merge(chordLine: string, lyricLine: string): string {
     while (chars.length < t.pos) chars.push(" ");
     // Repeat marks and bar lines ride along as plain text; only real chords
     // get bracketed, or "x2" would render as a chord.
+    if (BAR_TOKEN.test(t.text)) continue;
     chars.splice(t.pos, 0, isStrictChord(t.text) ? `[${t.text}]` : t.text);
   }
   return chars.join("").trimEnd();
 }
 
-/** Brackets the chords in a line, leaving spacing and any aside untouched. */
+/** Brackets the chords in a line, dropping the bar lines that frame a grid. */
 function chordsOnly(chordLine: string): string {
-  // Note names inside an aside — "(hit the E note)" — are prose, not chords,
-  // so bracketing only ever happens outside the parentheses.
+  // A line carrying prose keeps its original spacing, since that positions the
+  // chords above the words. Note names inside the aside are prose, not chords.
+  if (hasAside(chordLine)) {
+    return chordLine
+      .trimEnd()
+      .split(/(\([^()]*\))/)
+      .map((part) =>
+        part.startsWith("(")
+          ? part
+          : part
+              .split(/(\s+)/)
+              .map((t) => (t.trim() === "" ? t : isStrictChord(t) ? `[${t}]` : t))
+              .join(""),
+      )
+      .join("");
+  }
+  // A bare grid renders as chords alone, so its column spacing is never drawn;
+  // normalising it keeps the stored source readable once the bars are gone.
   return chordLine
-    .trimEnd()
-    .split(/(\([^()]*\))/)
-    .map((part) =>
-      part.startsWith("(")
-        ? part
-        : part
-            .split(/(\s+)/)
-            .map((t) => (t.trim() === "" ? t : isStrictChord(t) ? `[${t}]` : t))
-            .join(""),
-    )
-    .join("");
+    .trim()
+    .split(/\s+/)
+    .filter((t) => t && !BAR_TOKEN.test(t))
+    .map((t) => (isStrictChord(t) ? `[${t}]` : t))
+    .join(" ");
 }
 
 /** Whether a chord line also carries prose, e.g. a playing note in brackets. */
@@ -159,7 +178,7 @@ export function ugContentToChordPro(content: string): string {
     const hasMarker = /\[ch\]/.test(line);
     const withoutChords = line.replace(/\[ch\](.*?)\[\/ch\]/g, "");
     // Marked chords plus at most a parenthesised note still make a chord line.
-    const forcedChord = hasMarker && stripAsides(withoutChords).trim() === "";
+    const forcedChord = hasMarker && stripAsides(stripGridMarks(withoutChords)).trim() === "";
     return { text: expandTabs(line.replace(/\[ch\](.*?)\[\/ch\]/g, "$1")), forcedChord };
   });
 

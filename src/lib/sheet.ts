@@ -10,7 +10,8 @@ export interface Chunk {
 }
 
 export type Line =
-  | { kind: "lyrics"; chunks: Chunk[] }
+  /** `repeat` is the "x2" a grid line ends with, lifted out of the text. */
+  | { kind: "lyrics"; chunks: Chunk[]; repeat?: number }
   | { kind: "comment"; text: string }
   | { kind: "blank" };
 
@@ -119,11 +120,32 @@ export function parseSheet(source: string): Sheet {
         chordOrder.push(c.chord);
       }
     }
-    current.lines.push({ kind: "lyrics", chunks });
+    const repeat = extractRepeat(chunks);
+    current.lines.push(repeat === null ? { kind: "lyrics", chunks } : { kind: "lyrics", chunks, repeat });
   }
   flush();
 
   return { meta, sections, chords: chordOrder };
+}
+
+const REPEAT_RE = /^\(?\s*(?:[xX]\s*(\d{1,2})|(\d{1,2})\s*[xX])\s*\)?$/;
+
+/**
+ * Pulls the repeat count off a chord grid — "| Em | Am | x2". Only fires when
+ * the marker is the line's entire text, so a lyric mentioning "x2" is safe.
+ * The marker is removed from the chunks so it renders as a badge instead.
+ */
+function extractRepeat(chunks: Chunk[]): number | null {
+  if (!chunks.some((c) => c.chord)) return null;
+  const plain = chunks.map((c) => c.text).join("").trim();
+  const m = REPEAT_RE.exec(plain);
+  if (!m) return null;
+  const times = Number(m[1] ?? m[2]);
+  if (!Number.isInteger(times) || times < 2 || times > 32) return null;
+  for (const chunk of chunks) {
+    if (chunk.text.trim()) chunk.text = chunk.text.replace(plain, "");
+  }
+  return times;
 }
 
 function parseLyricLine(line: string): Chunk[] {

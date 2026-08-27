@@ -108,6 +108,20 @@ body {
   font-variant-ligatures: none;
 }
 
+/* "play this four times" — a marker about the line, not a chord in it. */
+.repeat-badge {
+  align-self: flex-end;
+  margin-left: 0.55em;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: 999px;
+  padding: 0.08em 0.5em;
+  font-size: 0.72em;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
 /* A line with chords but no words (intros, turnarounds). */
 .sheet-line--chords .sheet-chord {
   font-size: 0.9em;

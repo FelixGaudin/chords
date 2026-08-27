@@ -89,6 +89,7 @@ export function ChordSheet({ sheet, onChordClick, onChordHover, onChordLeave }: 
                     ))}
                   </span>
                 ))}
+                {line.repeat !== undefined && <span className="repeat-badge">×{line.repeat}</span>}
               </div>
             );
           })}
