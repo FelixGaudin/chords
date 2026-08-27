@@ -74,7 +74,7 @@ export function ChordPopover({
       onMouseEnter={onPointerEnter}
       onMouseLeave={onPointerLeave}
       style={{ left: pos?.left ?? 0, top: pos?.top ?? 0 }}
-      className={`no-print fixed z-50 w-[23rem] rounded-xl border border-rule bg-raised p-3.5 shadow-[0_10px_34px_rgba(0,0,0,0.16)] ${
+      className={`no-print fixed z-50 w-auto max-w-[20rem] min-w-[10rem] rounded-xl border border-rule bg-raised p-3.5 shadow-[0_10px_34px_rgba(0,0,0,0.16)] ${
         pos ? "" : "pointer-events-none opacity-0"
       }`}
     >
@@ -90,7 +90,7 @@ export function ChordPopover({
           </svg>
         </button>
       )}
-      <ChordDetail symbol={symbol} instrument={instrument} preferFlats={preferFlats} limit={3} />
+      <ChordDetail symbol={symbol} instrument={instrument} preferFlats={preferFlats} />
     </div>
   );
 }

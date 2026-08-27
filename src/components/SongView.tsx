@@ -274,13 +274,12 @@ export function SongView({ song }: { song: Song }) {
             Scroll
           </button>
           {scrolling && (
-            <button
-              type="button"
-              onClick={() => setSpeedIdx((i) => (i + 1) % SCROLL_SPEEDS.length)}
-              className="inline-flex h-9 shrink-0 items-center rounded-full border border-rule bg-raised px-3 text-[13px] tabular-nums"
-            >
-              {speedIdx + 1}×
-            </button>
+            <Stepper
+              label="Speed"
+              value={`${speedIdx + 1}×`}
+              onDec={() => setSpeedIdx((i) => Math.max(0, i - 1))}
+              onInc={() => setSpeedIdx((i) => Math.min(SCROLL_SPEEDS.length - 1, i + 1))}
+            />
           )}
           {(transpose !== 0 || (!isKeyboard && capo !== baseCapo)) && (
             <button type="button" onClick={reset} className="h-9 shrink-0 px-2 text-[13px] text-muted hover:text-ink">

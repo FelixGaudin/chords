@@ -1,4 +1,4 @@
-import { degreeLabel, midiToPc, pcToNote } from "@/lib/music";
+import { midiToPc, pcToNote } from "@/lib/music";
 
 interface Props {
   /** MIDI notes to light up, expected within C3–B4. */
@@ -58,19 +58,7 @@ export function PianoDiagram({ notes, root, bass, detailed = false, className }:
               strokeOpacity={0.45}
               strokeWidth={0.9}
             />
-            {detailed && lit && (
-              <text
-                x={i * WW + WW / 2}
-                y={h - 3}
-                fontSize={6.5}
-                textAnchor="middle"
-                fill="currentColor"
-                fillOpacity={0.6}
-                fontWeight={600}
-              >
-                {midi === bass ? "bass" : degreeLabel(midiToPc(midi), root)}
-              </text>
-            )}
+
           </g>
         );
       })}

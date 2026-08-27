@@ -1,7 +1,7 @@
 import { ChordDiagram } from "./ChordDiagram";
 import { PianoDiagram } from "./PianoDiagram";
 import { INSTRUMENTS, InstrumentId, isFretted } from "@/lib/instruments";
-import { degreeLabel, midiToPc, parseChord, pcToNote } from "@/lib/music";
+import { midiToPc, parseChord, pcToNote } from "@/lib/music";
 import { generateVoicings, pianoVoicing } from "@/lib/voicings";
 
 /** A single small diagram, used in the strip of chords above a song. */
@@ -41,36 +41,18 @@ export function ChordDetail({
   symbol,
   instrument,
   preferFlats = false,
-  limit = 4,
 }: {
   symbol: string;
   instrument: InstrumentId;
   preferFlats?: boolean;
-  limit?: number;
 }) {
   const chord = parseChord(symbol);
   const inst = INSTRUMENTS[instrument];
   if (!chord) return <p className="text-sm text-muted">Not a chord we recognise.</p>;
 
-  const noteList = chord.pcs
-    .slice()
-    .sort((a, b) => ((a - chord.root + 12) % 12) - ((b - chord.root + 12) % 12))
-    .map((pc) => ({ name: pcToNote(pc, preferFlats), degree: degreeLabel(pc, chord.root) }));
-
   return (
     <div>
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h3 className="font-mono text-xl font-semibold text-accent">{symbol}</h3>
-        <p className="text-sm text-muted">
-          {noteList.map((n, i) => (
-            <span key={n.name + i}>
-              {i > 0 && <span className="text-faint"> · </span>}
-              {n.name}
-              <span className="text-faint"> {n.degree}</span>
-            </span>
-          ))}
-        </p>
-      </div>
+      <h3 className="font-mono text-xl font-semibold text-accent">{symbol}</h3>
       {chord.approximate && (
         <p className="mt-1 text-xs text-faint">
           “{chord.suffix}” isn’t a suffix we know — showing the closest basic shape.
@@ -78,7 +60,7 @@ export function ChordDetail({
       )}
 
       {isFretted(inst) ? (
-        <FrettedShapes symbol={symbol} instrument={instrument} limit={limit} />
+        <FrettedShape symbol={symbol} instrument={instrument} />
       ) : (
         (() => {
           const p = pianoVoicing(chord);
@@ -96,29 +78,16 @@ export function ChordDetail({
   );
 }
 
-function FrettedShapes({ symbol, instrument, limit }: { symbol: string; instrument: InstrumentId; limit: number }) {
+function FrettedShape({ symbol, instrument }: { symbol: string; instrument: InstrumentId }) {
   const chord = parseChord(symbol);
   const inst = INSTRUMENTS[instrument];
   if (!chord || !isFretted(inst)) return null;
-  const voicings = generateVoicings(chord, inst, limit);
+  const voicing = generateVoicings(chord, inst, 1)[0];
 
-  if (!voicings.length) {
-    return <p className="mt-4 text-sm text-muted">No playable shape found for this chord on the {inst.name.toLowerCase()}.</p>;
+  if (!voicing) {
+    return <p className="mt-4 text-sm text-muted">No playable shape for this chord on the {inst.name.toLowerCase()}.</p>;
   }
-
-  return (
-    <>
-      <div className="mt-4 flex gap-4 overflow-x-auto pb-1 no-scrollbar">
-        {voicings.map((v, i) => (
-          <div key={i} className="shrink-0">
-            <ChordDiagram voicing={v} instrument={inst} detailed className="h-[104px] w-auto text-ink" />
-          </div>
-        ))}
-      </div>
-      <p className="mt-2 text-xs text-faint">
-        {inst.name} · {inst.tuningName}
-        {voicings.length > 1 && ` · ${voicings.length} positions`}
-      </p>
-    </>
-  );
+  // The string names under the diagram already spell the tuning, so there's
+  // nothing left worth captioning.
+  return <ChordDiagram voicing={voicing} instrument={inst} detailed className="mt-3 h-[104px] w-auto text-ink" />;
 }
