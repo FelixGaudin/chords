@@ -6,6 +6,11 @@
 import { Chord, midiToPc } from "./music";
 import { FrettedInstrument } from "./instruments";
 
+/** True when the shape is drawn against the nut rather than up the neck. */
+export function isOpenPosition(v: Voicing): boolean {
+  return v.frets.some((f) => f === 0) || v.baseFret <= 1;
+}
+
 export interface Voicing {
   /** Per string, left to right. null = muted, 0 = open. */
   frets: (number | null)[];
@@ -102,6 +107,114 @@ export const CANONICAL: Record<string, Record<string, (number | null)[]>> = {
   },
 };
 
+/**
+ * Movable (barre) forms — the CAGED shapes a guitarist actually slides up the
+ * neck. A scorer left to itself prefers sparse open-string voicings that are
+ * harmonically correct but that nobody plays, so the standard forms are stated
+ * outright and transposed to whatever root is needed.
+ *
+ * Keyed by interval signature rather than suffix name, so every spelling of a
+ * quality (m / min / -) resolves to the same forms.
+ */
+interface Movable {
+  /** String carrying the root, 0 = low E. */
+  rootString: number;
+  /** Frets at the shape's home position; null is muted. */
+  frets: (number | null)[];
+}
+
+const X = null;
+
+const MOVABLE_GUITAR: Record<string, Movable[]> = {
+  "0,4,7": [
+    { rootString: 0, frets: [0, 2, 2, 1, 0, 0] }, // E shape
+    { rootString: 1, frets: [X, 0, 2, 2, 2, 0] }, // A shape
+    { rootString: 2, frets: [X, X, 0, 2, 3, 2] }, // D shape
+  ],
+  "0,3,7": [
+    { rootString: 0, frets: [0, 2, 2, 0, 0, 0] },
+    { rootString: 1, frets: [X, 0, 2, 2, 1, 0] },
+    { rootString: 2, frets: [X, X, 0, 2, 3, 1] },
+  ],
+  "0,4,7,10": [
+    { rootString: 0, frets: [0, 2, 0, 1, 0, 0] },
+    { rootString: 1, frets: [X, 0, 2, 0, 2, 0] },
+    { rootString: 2, frets: [X, X, 0, 2, 1, 2] },
+  ],
+  "0,3,7,10": [
+    { rootString: 0, frets: [0, 2, 0, 0, 0, 0] },
+    { rootString: 1, frets: [X, 0, 2, 0, 1, 0] },
+    { rootString: 2, frets: [X, X, 0, 2, 1, 1] },
+  ],
+  "0,4,7,11": [
+    { rootString: 0, frets: [0, 2, 1, 1, 0, 0] },
+    { rootString: 1, frets: [X, 0, 2, 1, 2, 0] },
+    { rootString: 2, frets: [X, X, 0, 2, 2, 2] },
+  ],
+  "0,5,7": [
+    { rootString: 0, frets: [0, 2, 2, 2, 0, 0] },
+    { rootString: 1, frets: [X, 0, 2, 2, 3, 0] },
+    { rootString: 2, frets: [X, X, 0, 2, 3, 3] },
+  ],
+  "0,2,7": [
+    { rootString: 1, frets: [X, 0, 2, 2, 0, 0] },
+    { rootString: 2, frets: [X, X, 0, 2, 3, 0] },
+  ],
+  "0,4,7,9": [
+    { rootString: 0, frets: [0, 2, 2, 1, 2, 0] },
+    { rootString: 1, frets: [X, 0, 2, 2, 2, 2] },
+    { rootString: 2, frets: [X, X, 0, 2, 0, 2] },
+  ],
+  "0,3,7,9": [
+    { rootString: 0, frets: [0, 2, 2, 0, 2, 0] },
+    { rootString: 1, frets: [X, 0, 2, 2, 1, 2] },
+    { rootString: 2, frets: [X, X, 0, 2, 0, 1] },
+  ],
+  "0,3,6,10": [
+    { rootString: 1, frets: [X, 0, 1, 0, 1, X] },
+    { rootString: 2, frets: [X, X, 0, 1, 1, 1] },
+  ],
+  "0,3,6,9": [{ rootString: 2, frets: [X, X, 1, 2, 1, 2] }],
+  "0,4,8": [{ rootString: 1, frets: [X, 0, 3, 2, 2, 1] }],
+  "0,2,4,7,10": [
+    { rootString: 0, frets: [0, 2, 0, 1, 0, 2] },
+    { rootString: 1, frets: [X, 0, 2, 4, 2, 3] },
+  ],
+  "0,5,7,10": [
+    { rootString: 0, frets: [0, 2, 0, 2, 0, 0] },
+    { rootString: 1, frets: [X, 0, 2, 0, 3, 0] },
+    { rootString: 2, frets: [X, X, 0, 2, 1, 3] },
+  ],
+};
+
+export const MOVABLE: Record<string, Record<string, Movable[]>> = { guitar: MOVABLE_GUITAR };
+
+/** The chord's intervals above its root, as a lookup key. */
+export function intervalKey(chord: Chord): string {
+  return [...new Set(chord.pcs.map((pc) => (pc - chord.root + 12) % 12))].sort((a, b) => a - b).join(",");
+}
+
+/** Every position a movable form can be played at for this chord. */
+function movableShapes(chord: Chord, inst: FrettedInstrument): (number | null)[][] {
+  // A slash chord wants a specific bass note, which these root-position forms
+  // can't honour, so it falls through to the search instead.
+  if (chord.bass !== null && chord.bass !== chord.root) return [];
+  const forms = MOVABLE[inst.id]?.[intervalKey(chord)];
+  if (!forms) return [];
+
+  const out: (number | null)[][] = [];
+  for (const form of forms) {
+    const home = inst.strings[form.rootString].open + (form.frets[form.rootString] ?? 0);
+    const base = ((chord.root - midiToPc(home)) % 12 + 12) % 12;
+    for (const shift of [base, base + 12]) {
+      const frets = form.frets.map((f) => (f === null ? null : f + shift));
+      if (frets.some((f) => f !== null && f > inst.maxFret)) continue;
+      out.push(frets);
+    }
+  }
+  return out;
+}
+
 function analyse(frets: (number | null)[], inst: FrettedInstrument) {
   const fretted = frets.filter((f): f is number => f !== null && f > 0);
   const baseFret = fretted.length ? Math.min(...fretted) : 0;
@@ -181,7 +294,9 @@ function score(
   s += baseFret * 1.15;
   s += fingerCount * 1.4;
   s += Math.max(0, span - 1) * 1.2;
-  s += mutedCount * 1.6;
+  // On a four-string instrument a muted string costs a quarter of the chord,
+  // so thin voicings shouldn't be offered as if they were positions.
+  s += mutedCount * (inst.strings.length <= 4 ? 4.5 : 1.6);
   if (barre) s += 1.2;
 
   // Muted strings wedged between sounding ones are hard to damp cleanly.
@@ -256,7 +371,13 @@ export function generateVoicings(chord: Chord, inst: FrettedInstrument, count = 
   const hit = cache.get(key);
   if (hit) return hit;
 
-  const shapes = enumerate(chord, inst);
+  const rate = (frets: (number | null)[], essential: number[]): Voicing | null => {
+    const value = score(frets, chord, inst, essential);
+    if (value === null) return null;
+    const { baseFret, barre, fingers } = analyse(frets, inst);
+    return { frets, fingers, baseFret, barre, score: value };
+  };
+
   // Dense chords can be unplayable with every tone present, so drop the least
   // characteristic requirements until something fits under four fingers.
   const third = chord.pcs.find((pc) => {
@@ -274,34 +395,42 @@ export function generateVoicings(chord: Chord, inst: FrettedInstrument, count = 
     [chord.root],
   ];
 
-  let scored: Voicing[] = [];
+  // The standard forms come first: they're what a player expects to find at
+  // each position. The search only fills in behind them.
+  const standard: Voicing[] = [];
+  for (const frets of movableShapes(chord, inst)) {
+    const v = rate(frets, chord.essential);
+    if (v) standard.push(v);
+  }
+  standard.sort((a, b) => a.baseFret - b.baseFret);
+
+  let searched: Voicing[] = [];
   for (const essential of tiers) {
-    scored = [];
-    for (const frets of shapes) {
-      const s = score(frets, chord, inst, essential);
-      if (s === null) continue;
-      const { baseFret, barre, fingers } = analyse(frets, inst);
-      scored.push({ frets, fingers, baseFret, barre, score: s });
+    searched = [];
+    for (const frets of enumerate(chord, inst)) {
+      const v = rate(frets, essential);
+      if (v) searched.push(v);
     }
-    if (scored.length) break;
+    if (searched.length) break;
   }
-  scored.sort((a, b) => a.score - b.score);
+  searched.sort((a, b) => a.score - b.score);
 
-  // Keep shapes distinct: one per hand position, so the list offers real
-  // alternatives up and down the neck instead of near-duplicates.
+  // One shape per hand position, so the list offers real alternatives up and
+  // down the neck rather than near-duplicates.
   const out: Voicing[] = [];
-  const seenPositions = new Set<number>();
-  for (const v of scored) {
-    if (seenPositions.has(v.baseFret)) continue;
-    seenPositions.add(v.baseFret);
+  const seen = new Set<number>();
+  const take = (v: Voicing) => {
+    if (seen.has(v.baseFret) || out.length >= count) return;
+    seen.add(v.baseFret);
     out.push(v);
-    if (out.length >= count) break;
-  }
-  for (const v of scored) {
-    if (out.length >= count) break;
-    if (!out.includes(v)) out.push(v);
-  }
+  };
+  // Where standard forms exist they are the whole answer — padding the list
+  // with a thin searched voicing would offer a "position" nobody plays. The
+  // search still covers instruments and chord types with no form of their own.
+  (standard.length ? standard : searched).forEach(take);
 
+  // The opening entry is the default shown everywhere, so it should be the
+  // familiar open chord where one exists.
   const canon = CANONICAL[inst.id]?.[chord.symbol];
   if (canon && canon.length === inst.strings.length) {
     const { baseFret, barre, fingers } = analyse(canon, inst);

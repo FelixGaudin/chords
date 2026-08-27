@@ -13,6 +13,8 @@ import type { Song } from "@/lib/db";
 
 const SCROLL_SPEEDS = [12, 20, 30, 44, 64];
 
+type Source = "sheet" | "strip";
+
 export function SongView({ song }: { song: Song }) {
   const [transpose, setTranspose] = useState(0);
   const [capo, setCapo] = useState(song.capo ?? 0);
@@ -20,9 +22,16 @@ export function SongView({ song }: { song: Song }) {
   const [fontStep, setFontStep] = useState(0);
   const [showHints, setShowHints] = useState(true);
   const [active, setActive] = useState<string | null>(null);
-  const [hint, setHint] = useState<{ symbol: string; el: HTMLElement } | null>(null);
+  // Where the chord was pointed at. Only the chord section lets you change the
+  // fingering; in the song itself the card is a read-only reminder.
+  const [hint, setHint] = useState<{ symbol: string; el: HTMLElement; source: Source } | null>(null);
+  const [activeSource, setActiveSource] = useState<Source>("sheet");
   const [pinned, setPinned] = useState(false);
   const [canHover, setCanHover] = useState(false);
+  // Chosen fingering per chord, keyed by instrument so a guitar choice doesn't
+  // leak onto the ukulele. Transposing renames the chords, which retires the
+  // old entries by itself.
+  const [positions, setPositions] = useState<Record<string, number>>({});
   const [scrolling, setScrolling] = useState(false);
   const [speedIdx, setSpeedIdx] = useState(1);
   const [ready, setReady] = useState(false);
@@ -37,6 +46,7 @@ export function SongView({ song }: { song: Song }) {
       const s = JSON.parse(localStorage.getItem(`chords:song:${song.id}`) ?? "{}");
       if (typeof s.transpose === "number") setTranspose(s.transpose);
       if (typeof s.capo === "number") setCapo(s.capo);
+      if (s.positions && typeof s.positions === "object") setPositions(s.positions);
     } catch {
       /* first run, or storage blocked */
     }
@@ -50,8 +60,24 @@ export function SongView({ song }: { song: Song }) {
 
   useEffect(() => {
     if (!ready) return;
-    localStorage.setItem(`chords:song:${song.id}`, JSON.stringify({ transpose, capo }));
-  }, [ready, song.id, transpose, capo]);
+    localStorage.setItem(`chords:song:${song.id}`, JSON.stringify({ transpose, capo, positions }));
+  }, [ready, song.id, transpose, capo, positions]);
+
+  const positionOf = useCallback(
+    (symbol: string) => positions[`${instrument}|${symbol}`] ?? 0,
+    [positions, instrument],
+  );
+  const choosePosition = useCallback(
+    (symbol: string, index: number) => {
+      setPositions((p) => ({ ...p, [`${instrument}|${symbol}`]: index }));
+      // Swapping the shape replaces the diagram under the pointer, which can
+      // make the browser fire mouseleave and dismiss the card mid-choice.
+      // Picking a position is deliberate, so keep the card up to compare.
+      clearTimers();
+      setPinned(true);
+    },
+    [instrument],
+  );
 
   // Hover only exists where there's a pointing device; phones keep the
   // tap-to-open sheet. `any-hover` rather than `hover` so a laptop that also
@@ -72,12 +98,12 @@ export function SongView({ song }: { song: Song }) {
   };
 
   const showHint = useCallback(
-    (symbol: string, el: HTMLElement) => {
+    (symbol: string, el: HTMLElement, source: Source) => {
       // A pinned card stays put; hovering elsewhere shouldn't steal it.
       if (!canHover || pinned) return;
       clearTimers();
       // A short delay keeps the card from flashing as the pointer crosses a line.
-      enterTimer.current = setTimeout(() => setHint({ symbol, el }), 90);
+      enterTimer.current = setTimeout(() => setHint({ symbol, el, source }), 90);
     },
     [canHover, pinned],
   );
@@ -92,14 +118,15 @@ export function SongView({ song }: { song: Song }) {
   }, [canHover, pinned]);
 
   const handleChordClick = useCallback(
-    (symbol: string, el: HTMLElement) => {
+    (symbol: string, el: HTMLElement, source: Source) => {
       if (!canHover) {
         setActive(symbol);
+        setActiveSource(source);
         return;
       }
       clearTimers();
       // Clicking pins the card open so the pointer can leave it alone.
-      setHint({ symbol, el });
+      setHint({ symbol, el, source });
       setPinned((was) => !(was && hint?.symbol === symbol));
     },
     [canHover, hint?.symbol],
@@ -307,13 +334,13 @@ export function SongView({ song }: { song: Song }) {
                       type="button"
                       data-chord-chip
                       className="shrink-0"
-                      onClick={(e) => handleChordClick(c, e.currentTarget)}
-                      onMouseEnter={(e) => showHint(c, e.currentTarget)}
+                      onClick={(e) => handleChordClick(c, e.currentTarget, "strip")}
+                      onMouseEnter={(e) => showHint(c, e.currentTarget, "strip")}
                       onMouseLeave={hideHint}
-                      onFocus={(e) => showHint(c, e.currentTarget)}
+                      onFocus={(e) => showHint(c, e.currentTarget, "strip")}
                       onBlur={hideHint}
                     >
-                      <ChordMini symbol={c} instrument={instrument} />
+                      <ChordMini symbol={c} instrument={instrument} position={positionOf(c)} />
                     </button>
                   ))}
                 </div>
@@ -327,7 +354,12 @@ export function SongView({ song }: { song: Song }) {
         className="mx-auto w-full max-w-3xl px-4 pt-5"
         style={{ ["--sheet-size" as string]: `${1 + fontStep * 0.09}rem` }}
       >
-        <ChordSheet sheet={sheet} onChordClick={handleChordClick} onChordHover={showHint} onChordLeave={hideHint} />
+        <ChordSheet
+          sheet={sheet}
+          onChordClick={(sym, el) => handleChordClick(sym, el, "sheet")}
+          onChordHover={(sym, el) => showHint(sym, el, "sheet")}
+          onChordLeave={hideHint}
+        />
       </main>
 
       {canHover && hint && (
@@ -336,6 +368,8 @@ export function SongView({ song }: { song: Song }) {
           anchor={hint.el}
           instrument={instrument}
           preferFlats={preferFlats}
+          position={positionOf(hint.symbol)}
+          onSelectPosition={hint.source === "strip" ? (i) => choosePosition(hint.symbol, i) : undefined}
           pinned={pinned}
           onClose={closeHint}
           onPointerEnter={clearTimers}
@@ -368,7 +402,13 @@ export function SongView({ song }: { song: Song }) {
                 </svg>
               </button>
             </div>
-            <ChordDetail symbol={active} instrument={instrument} preferFlats={preferFlats} />
+            <ChordDetail
+              symbol={active}
+              instrument={instrument}
+              preferFlats={preferFlats}
+              position={positionOf(active)}
+              onSelectPosition={activeSource === "strip" ? (i) => choosePosition(active, i) : undefined}
+            />
           </div>
         </>
       )}

@@ -10,6 +10,9 @@ interface Props {
   anchor: HTMLElement;
   instrument: InstrumentId;
   preferFlats: boolean;
+  position: number;
+  /** Omitted where the fingering is not meant to be changed. */
+  onSelectPosition?: (index: number) => void;
   /** Pinned cards survive the pointer leaving, and gain a close button. */
   pinned: boolean;
   onClose: () => void;
@@ -27,6 +30,8 @@ export function ChordPopover({
   anchor,
   instrument,
   preferFlats,
+  position,
+  onSelectPosition,
   pinned,
   onClose,
   onPointerEnter,
@@ -65,7 +70,7 @@ export function ChordPopover({
       window.removeEventListener("scroll", place, true);
       window.removeEventListener("resize", place);
     };
-  }, [anchor, symbol, instrument]);
+  }, [anchor, symbol, instrument, position]);
 
   return (
     <div
@@ -90,7 +95,13 @@ export function ChordPopover({
           </svg>
         </button>
       )}
-      <ChordDetail symbol={symbol} instrument={instrument} preferFlats={preferFlats} />
+      <ChordDetail
+        symbol={symbol}
+        instrument={instrument}
+        preferFlats={preferFlats}
+        position={position}
+        onSelectPosition={onSelectPosition}
+      />
     </div>
   );
 }
