@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { slugify } from "./slug";
 
 export interface Song {
   id: string;
@@ -29,16 +30,6 @@ function dataDir(): string {
 
 async function ensureDir() {
   await fs.mkdir(dataDir(), { recursive: true });
-}
-
-export function slugify(s: string): string {
-  return s
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 60);
 }
 
 export async function makeId(title: string, artist: string): Promise<string> {

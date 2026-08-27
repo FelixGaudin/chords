@@ -10,6 +10,7 @@ import { INSTRUMENTS, INSTRUMENT_ORDER, InstrumentId } from "@/lib/instruments";
 import { parseChord, preferFlatsForKey, transposeSymbol } from "@/lib/music";
 import { parseSheet, transposeSource } from "@/lib/sheet";
 import type { Song } from "@/lib/db";
+import { slugify } from "@/lib/slug";
 
 const SCROLL_SPEEDS = [12, 20, 30, 44, 64];
 
@@ -224,7 +225,16 @@ export function SongView({ song }: { song: Song }) {
         <div className="mt-2 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-[1.6rem] leading-tight font-semibold tracking-[-0.015em]">{song.title}</h1>
-            {song.artist && <p className="mt-0.5 text-[15px] text-muted">{song.artist}</p>}
+            {song.artist && (
+              <p className="mt-0.5 text-[15px]">
+                <Link
+                  href={`/artists/${slugify(song.artist)}`}
+                  className="text-muted decoration-rule-strong underline-offset-2 hover:text-ink hover:underline"
+                >
+                  {song.artist}
+                </Link>
+              </p>
+            )}
           </div>
           <div className="no-print flex shrink-0 items-center gap-1">
             <ThemeToggle />

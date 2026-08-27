@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
+import { SongRow } from "./SongRow";
 import type { SongSummary } from "@/lib/db";
 
 export function SongList({ songs }: { songs: SongSummary[] }) {
@@ -41,19 +41,7 @@ export function SongList({ songs }: { songs: SongSummary[] }) {
       ) : (
         <ul className="mt-4 divide-y divide-rule border-y border-rule">
           {filtered.map((song) => (
-            <li key={song.id}>
-              <Link href={`/songs/${song.id}`} className="flex items-center gap-3 py-3 active:bg-accent-soft">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[15px] font-medium">{song.title}</p>
-                  <p className="truncate text-[13px] text-muted">{song.artist || "Unknown artist"}</p>
-                </div>
-                <span className="shrink-0 font-mono text-[12px] text-faint tabular-nums">
-                  {song.key ?? ""}
-                  {song.key && song.capo ? " · " : ""}
-                  {song.capo ? `capo ${song.capo}` : ""}
-                </span>
-              </Link>
-            </li>
+            <SongRow key={song.id} song={song} />
           ))}
         </ul>
       )}
