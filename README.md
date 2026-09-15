@@ -2,7 +2,7 @@
 
 A chord songbook. Chords and lyrics only — no tablature, no ads, no login.
 
-Import a song from Ultimate Guitar (or paste one in), and it becomes a clean,
+Search Ultimate Guitar from the app (or paste a song in), and it becomes a clean,
 transposable page with fingering hints for **guitar, piano, ukulele and banjo**.
 Built to be read off a phone propped on a music stand.
 
@@ -47,8 +47,10 @@ somewhere else.
 
 ## What it does
 
-**Import.** Paste an Ultimate Guitar link and the chord sheet is pulled out of
-the page and converted. Other chord sites are read generically: the sheet is
+**Import.** Search Ultimate Guitar by title, artist or both and pick a version
+off the list — the sheet is fetched on the click, no visit to the site needed.
+Pasting an Ultimate Guitar link works the same way: the chord sheet is pulled
+out of the page and converted. Other chord sites are read generically: the sheet is
 usually inside a `<pre>` block, and failing that the page text is scanned for
 the stretch of lines that look like chords. Sites that block automated requests
 will say so, and the *Paste text* tab always works — it understands both the

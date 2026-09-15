@@ -29,7 +29,7 @@ const BROWSER_HEADERS: Record<string, string> = {
   "Accept-Language": "en-US,en;q=0.9",
 };
 
-async function fetchPage(url: string): Promise<{ body: string; contentType: string }> {
+async function fetchPage(url: string, allowNotFound = false): Promise<{ body: string; contentType: string }> {
   let res: Response;
   try {
     res = await fetch(url, { headers: BROWSER_HEADERS, redirect: "follow", signal: AbortSignal.timeout(20_000) });
@@ -39,7 +39,7 @@ async function fetchPage(url: string): Promise<{ body: string; contentType: stri
       err instanceof Error ? err.message : undefined,
     );
   }
-  if (!res.ok) {
+  if (!res.ok && !(allowNotFound && res.status === 404)) {
     throw new ImportError(
       `${new URL(url).hostname} replied ${res.status}`,
       res.status === 403 || res.status === 429
@@ -159,6 +159,17 @@ function splitTitle(raw: string): { title: string; artist: string } {
   return { title: s, artist: "" };
 }
 
+/** Ultimate Guitar ships its page state as JSON in a data attribute. */
+function ugStore<T>(html: string): T {
+  const m = /<div[^>]+class="js-store"[^>]+data-content="([^"]*)"/i.exec(html);
+  if (!m) throw new ImportError("Ultimate Guitar page had no data we could read", "The page layout may have changed.");
+  try {
+    return JSON.parse(decodeEntities(m[1])) as T;
+  } catch {
+    throw new ImportError("Could not read Ultimate Guitar's page data");
+  }
+}
+
 interface UgStore {
   store?: {
     page?: {
@@ -174,17 +185,7 @@ interface UgStore {
 }
 
 function importUltimateGuitar(html: string, url: string): ImportResult {
-  const m = /<div[^>]+class="js-store"[^>]+data-content="([^"]*)"/i.exec(html);
-  if (!m) throw new ImportError("Ultimate Guitar page had no song data", "The page layout may have changed.");
-
-  let data: UgStore;
-  try {
-    data = JSON.parse(decodeEntities(m[1])) as UgStore;
-  } catch {
-    throw new ImportError("Could not read Ultimate Guitar's song data");
-  }
-
-  const page = data.store?.page?.data;
+  const page = ugStore<UgStore>(html).store?.page?.data;
   const content = page?.tab_view?.wiki_tab?.content;
   if (!content) {
     throw new ImportError(
@@ -207,6 +208,73 @@ function importUltimateGuitar(html: string, url: string): ImportResult {
     sourceUrl: url,
     via: "Ultimate Guitar",
   };
+}
+
+export interface SearchHit {
+  title: string;
+  artist: string;
+  url: string;
+  /** "Chords" or "Ukulele Chords" — the two kinds this library can read. */
+  type: string;
+  version: number;
+  rating: number;
+  votes: number;
+  key?: string;
+}
+
+interface UgSearchRow {
+  type?: string;
+  song_name?: string;
+  artist_name?: string;
+  tab_url?: string;
+  version?: number;
+  rating?: number;
+  votes?: number;
+  tonality_name?: string;
+}
+
+interface UgSearchStore {
+  store?: { page?: { data?: { results?: UgSearchRow[] } } };
+}
+
+const SEARCHABLE_TYPES = new Set(["Chords", "Ukulele Chords"]);
+
+/** Chord sheets, in Ultimate Guitar's own order, from a search results page. */
+export function parseUgSearch(html: string): SearchHit[] {
+  const rows = ugStore<UgSearchStore>(html).store?.page?.data?.results ?? [];
+  const hits: SearchHit[] = [];
+  const seen = new Set<string>();
+
+  for (const row of rows) {
+    // Rows with no type are adverts for the paid apps; the typed ones cover
+    // tablature, bass, drums and video too, none of which this library reads.
+    if (!row.type || !SEARCHABLE_TYPES.has(row.type)) continue;
+    // Every version of a song comes back separately, but the same tab can
+    // appear twice when it matched on both title and artist.
+    if (!row.tab_url || seen.has(row.tab_url)) continue;
+    seen.add(row.tab_url);
+    hits.push({
+      title: row.song_name?.trim() ?? "",
+      artist: row.artist_name?.trim() ?? "",
+      url: row.tab_url,
+      type: row.type,
+      version: row.version ?? 1,
+      rating: row.rating ?? 0,
+      votes: row.votes ?? 0,
+      key: row.tonality_name || undefined,
+    });
+  }
+  return hits;
+}
+
+/** Searches Ultimate Guitar by song title, artist, or both at once. */
+export async function searchUltimateGuitar(query: string): Promise<SearchHit[]> {
+  const q = query.trim();
+  if (!q) return [];
+  const url = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent(q)}`;
+  // A search that matches nothing answers 404, with an empty result set in the
+  // page as usual — that's an empty list, not a failure.
+  return parseUgSearch((await fetchPage(url, true)).body);
 }
 
 /** The span of a page's text between its first and last chord line. */

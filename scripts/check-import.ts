@@ -1,7 +1,7 @@
 /**
  * Guards the scraping layer. Run with `npm run check:import`.
  */
-import { decodeEntities } from "../src/lib/import";
+import { decodeEntities, parseUgSearch } from "../src/lib/import";
 import { textToChordPro, ugContentToChordPro } from "../src/lib/convert";
 import { parseSheet } from "../src/lib/sheet";
 
@@ -80,6 +80,35 @@ eq(
   "glued bars above lyrics keep their column",
   textToChordPro("|Am  D  |G\nHello there now"),
   "H[Am]ello[D] the[G]re now",
+);
+
+console.log("Ultimate Guitar search…");
+// The search page carries its results in the same entity-encoded data
+// attribute the tab pages use, so accents arrive escaped here too.
+function searchPage(rows: object[]): string {
+  const json = JSON.stringify({ store: { page: { data: { results: rows } } } });
+  return `<div class="js-store" data-content="${json.replace(/"/g, "&quot;")}"></div>`;
+}
+const tab = (id: number) => `https://tabs.ultimate-guitar.com/tab/jacques-brel/song-chords-${id}`;
+const hits = parseUgSearch(
+  searchPage([
+    // No type: an advert for the paid apps, sitting above the real results.
+    { marketing_type: "official", song_name: "Amsterdam", artist_name: "Jacques Brel" },
+    { type: "Chords", song_name: "La Chanson Des Vieux Amants", artist_name: "Jacques Brel", version: 1, rating: 4.7, votes: 580, tonality_name: "Abm", tab_url: tab(1) },
+    { type: "Bass Tabs", song_name: "Amsterdam", artist_name: "Jacques Brel", tab_url: tab(2) },
+    { type: "Pro", song_name: "Amsterdam", artist_name: "Jacques Brel", tab_url: tab(3) },
+    { type: "Ukulele Chords", song_name: "&Agrave; Jeun", artist_name: "Jacques Brel", version: 2, tab_url: tab(4) },
+    // The same tab again: it matched on both the title and the artist.
+    { type: "Chords", song_name: "La Chanson Des Vieux Amants", artist_name: "Jacques Brel", tab_url: tab(1) },
+  ]),
+);
+eq("only chord sheets survive", hits.map((h) => h.type).join(", "), "Chords, Ukulele Chords");
+eq("entities are decoded in results", hits[1].title, "À Jeun");
+eq("duplicate tabs are dropped", String(hits.length), "2");
+eq(
+  "the fields the picker shows",
+  `${hits[0].title} / ${hits[0].artist} / v${hits[0].version} / ${hits[0].key} / ${hits[0].rating} / ${hits[0].votes}`,
+  "La Chanson Des Vieux Amants / Jacques Brel / v1 / Abm / 4.7 / 580",
 );
 
 console.log("Repeat markers…");
