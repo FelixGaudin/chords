@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { SongEditor, EditorValues } from "./SongEditor";
+import { findDuplicate, type DuplicateMatch, type LibraryEntry } from "@/lib/duplicates";
 import type { SearchHit } from "@/lib/import";
 
 type Mode = "search" | "url" | "paste";
@@ -40,7 +42,16 @@ function describe(hit: SearchHit): string {
   return parts.join(" · ");
 }
 
-export function ImportFlow() {
+/** Flags a search result you've saved before, so you don't import it twice. */
+function DuplicateBadge({ kind }: { kind: DuplicateMatch["kind"] }) {
+  return (
+    <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-px text-[11px] text-accent">
+      {kind === "same-sheet" ? "Already imported" : "In library"}
+    </span>
+  );
+}
+
+export function ImportFlow({ library }: { library: LibraryEntry[] }) {
   const [mode, setMode] = useState<Mode>("search");
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[] | null>(null);
@@ -107,8 +118,22 @@ export function ImportFlow() {
   }
 
   if (draft) {
+    const duplicate = findDuplicate(library, draft);
     return (
       <div>
+        {duplicate && (
+          <p className="mb-3 rounded-xl border border-rule bg-accent-soft px-3.5 py-2.5 text-[13px] text-ink">
+            {duplicate.kind === "same-sheet"
+              ? "You have imported this exact sheet before"
+              : "Another version of this song is already in your library"}
+            {" — "}
+            <Link href={`/songs/${duplicate.song.id}`} className="underline underline-offset-2">
+              {duplicate.song.title}
+              {duplicate.song.artist ? ` · ${duplicate.song.artist}` : ""}
+            </Link>
+            . Saving keeps both.
+          </p>
+        )}
         <p className="mb-5 rounded-xl border border-rule bg-raised px-3.5 py-2.5 text-[13px] text-muted">
           Imported from <span className="text-ink">{draft.via}</span>. Check it over, fix anything the parser got
           wrong, then save.
@@ -157,24 +182,30 @@ export function ImportFlow() {
 
           {hits && hits.length > 0 && (
             <ul className="mt-4 divide-y divide-rule overflow-hidden rounded-xl border border-rule">
-              {hits.map((hit) => (
-                <li key={hit.url}>
-                  <button
-                    type="button"
-                    onClick={() => pick(hit)}
-                    disabled={picked !== null}
-                    className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left hover:bg-raised disabled:opacity-40"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px]">{hit.title}</span>
-                      <span className="block truncate text-[12.5px] text-muted">{hit.artist}</span>
-                    </span>
-                    <span className="shrink-0 text-[12px] text-faint">
-                      {picked === hit.url ? "Reading…" : describe(hit)}
-                    </span>
-                  </button>
-                </li>
-              ))}
+              {hits.map((hit) => {
+                const duplicate = findDuplicate(library, { ...hit, sourceUrl: hit.url });
+                return (
+                  <li key={hit.url}>
+                    <button
+                      type="button"
+                      onClick={() => pick(hit)}
+                      disabled={picked !== null}
+                      className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left hover:bg-raised disabled:opacity-40"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5">
+                          <span className="truncate text-[14px]">{hit.title}</span>
+                          {duplicate && <DuplicateBadge kind={duplicate.kind} />}
+                        </span>
+                        <span className="block truncate text-[12.5px] text-muted">{hit.artist}</span>
+                      </span>
+                      <span className="shrink-0 text-[12px] text-faint">
+                        {picked === hit.url ? "Reading…" : describe(hit)}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

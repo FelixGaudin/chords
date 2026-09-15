@@ -1,9 +1,14 @@
 import Link from "next/link";
+import { listSongs } from "@/lib/db";
 import { ImportFlow } from "@/components/ImportFlow";
 
 export const metadata = { title: "Add a song — Chords" };
+export const dynamic = "force-dynamic";
 
-export default function ImportPage() {
+export default async function ImportPage() {
+  // What's already here, so the picker can flag a song you've saved before.
+  const library = (await listSongs()).map(({ id, title, artist, sourceUrl }) => ({ id, title, artist, sourceUrl }));
+
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6">
       <Link href="/" className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-ink">
@@ -17,7 +22,7 @@ export default function ImportPage() {
         Import from a link, or paste chords straight in. Everything is converted to one clean format.
       </p>
       <div className="mt-6">
-        <ImportFlow />
+        <ImportFlow library={library} />
       </div>
     </div>
   );

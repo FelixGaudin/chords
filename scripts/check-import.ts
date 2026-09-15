@@ -1,8 +1,10 @@
 /**
- * Guards the scraping layer. Run with `npm run check:import`.
+ * Guards the import layer: the scraping, and the duplicate check the picker
+ * runs over its results. Run with `npm run check:import`.
  */
 import { decodeEntities, parseUgSearch } from "../src/lib/import";
 import { textToChordPro, ugContentToChordPro } from "../src/lib/convert";
+import { findDuplicate, LibraryEntry } from "../src/lib/duplicates";
 import { parseSheet } from "../src/lib/sheet";
 
 let failures = 0;
@@ -110,6 +112,35 @@ eq(
   `${hits[0].title} / ${hits[0].artist} / v${hits[0].version} / ${hits[0].key} / ${hits[0].rating} / ${hits[0].votes}`,
   "La Chanson Des Vieux Amants / Jacques Brel / v1 / Abm / 4.7 / 580",
 );
+
+console.log("Duplicate detection…");
+const wonderwall = "https://tabs.ultimate-guitar.com/tab/oasis/wonderwall-chords-27596";
+const library: LibraryEntry[] = [
+  { id: "oasis-wonderwall", title: "Wonderwall", artist: "Oasis", sourceUrl: wonderwall },
+  { id: "jeff-buckley-hallelujah", title: "Hallelujah", artist: "Jeff Buckley" },
+  { id: "emile-bilodeau-ete-80", title: "Été '80", artist: "Émile Bilodeau" },
+];
+function duplicateOf(title: string, artist = "", sourceUrl?: string) {
+  const match = findDuplicate(library, { title, artist, sourceUrl });
+  return match ? `${match.kind} ${match.song.id}` : "none";
+}
+eq("the very same tab", duplicateOf("Wonderwall", "Oasis", wonderwall), "same-sheet oasis-wonderwall");
+eq("a trailing slash is the same tab", duplicateOf("Wonderwall", "Oasis", `${wonderwall}/`), "same-sheet oasis-wonderwall");
+// Ultimate Guitar lists every version separately, so this is the common case:
+// a different tab of a song already in the library.
+eq(
+  "another version of the same song",
+  duplicateOf("Wonderwall", "Oasis", "https://tabs.ultimate-guitar.com/tab/oasis/wonderwall-chords-1177425"),
+  "same-song oasis-wonderwall",
+);
+eq("a version label doesn't hide it", duplicateOf("Wonderwall (Acoustic)", "Oasis"), "same-song oasis-wonderwall");
+eq("case is ignored", duplicateOf("HALLELUJAH", "jeff buckley"), "same-song jeff-buckley-hallelujah");
+eq("accents are ignored", duplicateOf("Ete '80", "Emile Bilodeau"), "same-song emile-bilodeau-ete-80");
+// Pasted sheets often arrive as a title and nothing else.
+eq("no artist to compare", duplicateOf("Hallelujah"), "same-song jeff-buckley-hallelujah");
+eq("same title, different artist", duplicateOf("Hallelujah", "Leonard Cohen"), "none");
+eq("a song we don't have", duplicateOf("Champagne Supernova", "Oasis"), "none");
+eq("nothing to match on", duplicateOf("", "Oasis"), "none");
 
 console.log("Repeat markers…");
 function repeatOf(source: string) {

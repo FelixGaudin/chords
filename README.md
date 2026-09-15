@@ -49,6 +49,10 @@ somewhere else.
 
 **Import.** Search Ultimate Guitar by title, artist or both and pick a version
 off the list — the sheet is fetched on the click, no visit to the site needed.
+Songs you already have are flagged in that list: *Already imported* for the very
+sheet, *In library* for another version of the same song, since Ultimate Guitar
+lists a dozen versions of everything. The same note sits above the editor before
+you save, so a duplicate is never a surprise.
 Pasting an Ultimate Guitar link works the same way: the chord sheet is pulled
 out of the page and converted. Other chord sites are read generically: the sheet is
 usually inside a `<pre>` block, and failing that the page text is scanned for
@@ -88,7 +92,7 @@ piano is selected, because there is nothing for it to do.
 ```bash
 npm run check          # typecheck + both suites below
 npm run check:chords   # every chord shape must actually spell its chord
-npm run check:import   # entity decoding and chord-sheet conversion
+npm run check:import   # entity decoding, conversion, duplicate matching
 npm run build
 ```
 
@@ -99,7 +103,9 @@ stays inside a four-fret span.
 
 `check:import` covers the scraping layer, mostly HTML entities: song pages are
 full of accents, and an entity the decoder doesn't know leaks through as raw
-`&Ccedil;` text.
+`&Ccedil;` text. It also pins down what counts as a duplicate — the same sheet,
+another version of the same song, or a different song that happens to share a
+title.
 
 ## Layout
 
@@ -110,6 +116,7 @@ src/lib/instruments.ts  tunings
 src/lib/sheet.ts        ChordPro -> render structure
 src/lib/convert.ts      "chords above lyrics" -> ChordPro
 src/lib/import.ts       fetching and scraping song pages
+src/lib/duplicates.ts   matching an import against the library
 src/lib/db.ts           JSON file storage
 Dockerfile              three-stage build -> standalone server image
 docker-compose.yml      published port + the ./data bind mount
