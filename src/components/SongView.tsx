@@ -391,8 +391,8 @@ export function SongView({ song }: { song: Song }) {
         <>
           <div className="no-print fixed inset-0 z-40 bg-black/25" onClick={() => setActive(null)} aria-hidden />
           <div className="no-print fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t border-rule bg-raised p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-8px_40px_rgba(0,0,0,0.18)] sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-[27rem] sm:rounded-2xl sm:border">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="flex gap-1 rounded-full bg-paper p-0.5">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="flex flex-wrap gap-1 rounded-2xl bg-paper p-0.5">
                 {INSTRUMENT_ORDER.map((id) => (
                   <button
                     key={id}

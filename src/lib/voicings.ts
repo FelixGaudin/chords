@@ -6,6 +6,11 @@
 import { Chord, midiToPc } from "./music";
 import { FrettedInstrument } from "./instruments";
 
+/** True when the strings don't rise in pitch left to right (ukulele, banjo). */
+function isReentrant(inst: FrettedInstrument): boolean {
+  return inst.strings.some((str, i) => i > 0 && str.open < inst.strings[i - 1].open);
+}
+
 /** True when the shape is drawn against the nut rather than up the neck. */
 export function isOpenPosition(v: Voicing): boolean {
   return v.frets.some((f) => f === 0) || v.baseFret <= 1;
@@ -305,10 +310,11 @@ function score(
   for (let i = first; i <= last; i++) if (frets[i] === null) s += 3.5;
 
   // Bass note. Slash chords name their bass explicitly; otherwise the root is
-  // wanted underneath. Re-entrant tunings (ukulele, banjo) can't honour this.
+  // wanted underneath. Re-entrant tunings (ukulele, banjo) can't honour this,
+  // since their leftmost string isn't their lowest note.
   const wantBass = chord.bass ?? chord.root;
   const lowest = sounding.reduce((a, b) => (a.midi <= b.midi ? a : b));
-  const bassWeight = inst.id === "guitar" ? 7 : 1.5;
+  const bassWeight = isReentrant(inst) ? 1.5 : 7;
   if (lowest.pc !== wantBass) s += bassWeight;
   if (chord.bass !== null && lowest.pc !== chord.bass) s += 6;
 

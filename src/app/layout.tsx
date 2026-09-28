@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Chords",
-  description: "A quiet songbook for chords, with shapes for guitar, piano, ukulele and banjo.",
+  description: "A quiet songbook for chords, with shapes for guitar, piano, ukulele, banjo, bouzouki and mandolin.",
 };
 
 export const viewport: Viewport = {

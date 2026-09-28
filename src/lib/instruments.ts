@@ -1,4 +1,4 @@
-export type InstrumentId = "guitar" | "piano" | "ukulele" | "banjo";
+export type InstrumentId = "guitar" | "piano" | "ukulele" | "banjo" | "bouzouki" | "mandolin";
 
 export interface StringSpec {
   /** MIDI note of the open string. */
@@ -62,6 +62,37 @@ export const INSTRUMENTS: Record<InstrumentId, Instrument> = {
       { open: 69, label: "A" },
     ],
   },
+  bouzouki: {
+    id: "bouzouki",
+    name: "Bouzouki",
+    kind: "fretted",
+    // Irish bouzouki. The four courses are doubled, but a course fingers as one
+    // string, so the diagram draws four.
+    tuningName: "G D A D",
+    maxFret: 14,
+    maxSpan: 4,
+    strings: [
+      { open: 43, label: "G" },
+      { open: 50, label: "D" },
+      { open: 57, label: "A" },
+      { open: 62, label: "D" },
+    ],
+  },
+  mandolin: {
+    id: "mandolin",
+    name: "Mandolin",
+    kind: "fretted",
+    // Doubled courses again, tuned in fifths like a violin.
+    tuningName: "G D A E",
+    maxFret: 14,
+    maxSpan: 4,
+    strings: [
+      { open: 55, label: "G" },
+      { open: 62, label: "D" },
+      { open: 69, label: "A" },
+      { open: 76, label: "E" },
+    ],
+  },
   banjo: {
     id: "banjo",
     name: "Banjo",
@@ -79,7 +110,7 @@ export const INSTRUMENTS: Record<InstrumentId, Instrument> = {
   },
 };
 
-export const INSTRUMENT_ORDER: InstrumentId[] = ["guitar", "piano", "ukulele", "banjo"];
+export const INSTRUMENT_ORDER: InstrumentId[] = ["guitar", "piano", "ukulele", "banjo", "bouzouki", "mandolin"];
 
 export function isFretted(i: Instrument): i is FrettedInstrument {
   return i.kind === "fretted";
