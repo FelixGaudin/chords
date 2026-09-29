@@ -6,17 +6,19 @@ import { ChordSheet } from "./ChordSheet";
 import { ChordDetail, ChordMini } from "./ChordView";
 import { ChordPopover } from "./ChordPopover";
 import { ThemeToggle } from "./ThemeToggle";
+import { AddToPlaylist } from "./AddToPlaylist";
 import { INSTRUMENTS, INSTRUMENT_ORDER, InstrumentId } from "@/lib/instruments";
 import { parseChord, preferFlatsForKey, transposeSymbol } from "@/lib/music";
 import { parseSheet, transposeSource } from "@/lib/sheet";
 import type { Song } from "@/lib/db";
+import type { Setlist } from "@/lib/playlists";
 import { slugify } from "@/lib/slug";
 
 const SCROLL_SPEEDS = [12, 20, 30, 44, 64];
 
 type Source = "sheet" | "strip";
 
-export function SongView({ song }: { song: Song }) {
+export function SongView({ song, setlist = null }: { song: Song; setlist?: Setlist | null }) {
   const [transpose, setTranspose] = useState(0);
   const [capo, setCapo] = useState(song.capo ?? 0);
   const [instrument, setInstrument] = useState<InstrumentId>("guitar");
@@ -216,12 +218,22 @@ export function SongView({ song }: { song: Song }) {
   return (
     <div className="min-h-dvh pb-24">
       <header className="mx-auto w-full max-w-3xl px-4 pt-4">
-        <Link href="/" className="no-print inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-ink">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-            <path d="M10 3.5 5.5 8l4.5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Songs
-        </Link>
+        <div className="no-print flex items-baseline gap-2">
+          <Link
+            href={setlist ? `/playlists/${setlist.id}` : "/"}
+            className="inline-flex min-w-0 items-center gap-1.5 text-[13px] text-muted hover:text-ink"
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden className="shrink-0">
+              <path d="M10 3.5 5.5 8l4.5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="truncate">{setlist ? setlist.name : "Songs"}</span>
+          </Link>
+          {setlist && (
+            <span className="shrink-0 text-[13px] text-faint tabular-nums">
+              {setlist.position} of {setlist.total}
+            </span>
+          )}
+        </div>
         <div className="mt-2 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-[1.6rem] leading-tight font-semibold tracking-[-0.015em]">{song.title}</h1>
@@ -237,6 +249,7 @@ export function SongView({ song }: { song: Song }) {
             )}
           </div>
           <div className="no-print flex shrink-0 items-center gap-1">
+            <AddToPlaylist songId={song.id} />
             <ThemeToggle />
             <Link href={`/songs/${song.id}/edit`} className="rounded-lg px-2 py-1.5 text-[13px] text-muted hover:bg-accent-soft hover:text-ink">
               Edit
@@ -370,6 +383,8 @@ export function SongView({ song }: { song: Song }) {
           onChordHover={(sym, el) => showHint(sym, el, "sheet")}
           onChordLeave={hideHint}
         />
+
+        {setlist && <SetlistNav setlist={setlist} />}
       </main>
 
       {canHover && hint && (
@@ -423,6 +438,38 @@ export function SongView({ song }: { song: Song }) {
         </>
       )}
     </div>
+  );
+}
+
+/** What comes next in the set, sitting where the song runs out. */
+function SetlistNav({ setlist }: { setlist: Setlist }) {
+  const step = (song: { id: string; title: string } | null, back: boolean) =>
+    song ? (
+      <Link
+        href={`/songs/${song.id}?list=${setlist.id}`}
+        className={`flex min-w-0 flex-1 flex-col gap-0.5 rounded-xl border border-rule bg-raised px-3.5 py-2.5 hover:border-rule-strong ${
+          back ? "items-start" : "items-end text-right"
+        }`}
+      >
+        <span className="text-[11px] tracking-[0.12em] text-faint uppercase">{back ? "Previous" : "Next"}</span>
+        <span className="w-full truncate text-[14px] font-medium">{song.title}</span>
+      </Link>
+    ) : (
+      <span className="flex-1" />
+    );
+
+  return (
+    <nav className="no-print mt-10 border-t border-rule pt-4">
+      <div className="flex items-stretch gap-2">
+        {step(setlist.prev, true)}
+        {step(setlist.next, false)}
+      </div>
+      <p className="mt-2.5 text-center text-[12px] text-faint">
+        <Link href={`/playlists/${setlist.id}`} className="hover:text-muted">
+          {setlist.name} — {setlist.position} of {setlist.total}
+        </Link>
+      </p>
+    </nav>
   );
 }
 

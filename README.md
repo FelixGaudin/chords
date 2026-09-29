@@ -3,7 +3,8 @@
 A chord songbook. Chords and lyrics only — no tablature, no ads, no login.
 
 Search Ultimate Guitar from the app (or paste a song in), and it becomes a clean,
-transposable page with fingering hints for **guitar, piano, ukulele and banjo**.
+transposable page with fingering hints for **guitar, piano, ukulele, banjo,
+bouzouki and mandolin**.
 Built to be read off a phone propped on a music stand.
 
 ## Running it
@@ -41,9 +42,10 @@ Two knobs, both optional:
 If `id -u` isn't 1000, start it with `CHORDS_UID=$(id -u) CHORDS_GID=$(id -g)
 docker compose up -d`, or the container won't be able to write to the mount.
 
-Songs are plain JSON files in `data/songs/`. Back the folder up, sync it, or
-edit the files by hand — there's no database. Set `CHORDS_DATA_DIR` to keep them
-somewhere else.
+Songs are plain JSON files in `data/songs/`, playlists in `data/playlists/`.
+Back the folder up, sync it, or edit the files by hand — there's no database.
+Set `CHORDS_DATA_DIR` to keep the songs somewhere else; playlists follow, as a
+folder beside them.
 
 ## What it does
 
@@ -75,6 +77,13 @@ than looked up, so unusual chords work as well as common ones — with a handful
 of hand-checked shapes (open C, F, G…) taking priority where a player would
 expect the familiar one.
 
+**Playlists.** A set, a rehearsal, an evening — an ordered list of songs, made
+from the *Playlists* link on the library page or from the icon on any song.
+Reorder it with the arrows, and it becomes a setlist: open a song from a
+playlist and the page knows where it sits in the set, with the previous and
+next song waiting at the bottom of the sheet. Deleting a song from the library
+just drops it out of the playlists that held it.
+
 ### Capo, and what the numbers mean
 
 A sheet's printed chords are the shapes you finger, already accounting for the
@@ -97,7 +106,7 @@ npm run build
 ```
 
 `check:chords` validates the hand-written and movable shapes, then generates
-every quality on every root for every fretted instrument — around 1850 shapes —
+every quality on every root for every fretted instrument — around 3100 shapes —
 asserting each one contains only chord tones, keeps its essential notes, and
 stays inside a four-fret span.
 
@@ -118,6 +127,7 @@ src/lib/convert.ts      "chords above lyrics" -> ChordPro
 src/lib/import.ts       fetching and scraping song pages
 src/lib/duplicates.ts   matching an import against the library
 src/lib/db.ts           JSON file storage
+src/lib/playlists.ts    playlists, and a song's place in one
 Dockerfile              three-stage build -> standalone server image
 docker-compose.yml      published port + the ./data bind mount
 ```

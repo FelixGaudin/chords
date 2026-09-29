@@ -28,6 +28,11 @@ function dataDir(): string {
   return override ? path.resolve(override) : path.join(process.cwd(), "data", "songs");
 }
 
+/** A collection kept beside the songs, so one folder holds the whole library. */
+export function siblingDir(name: string): string {
+  return path.join(path.dirname(dataDir()), name);
+}
+
 async function ensureDir() {
   await fs.mkdir(dataDir(), { recursive: true });
 }

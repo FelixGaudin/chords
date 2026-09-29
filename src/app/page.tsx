@@ -18,6 +18,9 @@ export default async function LibraryPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+        <Link href="/playlists" className="rounded-lg px-2 py-1.5 text-[13px] text-muted hover:bg-accent-soft hover:text-ink">
+          Playlists
+        </Link>
         <ThemeToggle className="-mr-1" />
         <Link
           href="/import"
