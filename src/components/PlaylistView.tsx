@@ -25,6 +25,7 @@ export function PlaylistView({
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const byId = useMemo(() => new Map(library.map((s) => [s.id, s])), [library]);
   const rows = useMemo(
@@ -78,6 +79,39 @@ export function PlaylistView({
     persist({ name: trimmed });
   }
 
+  // Each song goes in at the key and capo it was last left at, and those
+  // only live in this browser — so they ride along with the request.
+  async function downloadPdf() {
+    setError(null);
+    setExporting(true);
+    try {
+      const tunings: Record<string, unknown> = {};
+      let instrument: unknown = null;
+      try {
+        instrument = JSON.parse(localStorage.getItem("chords:prefs") ?? "{}").instrument;
+        for (const id of ids) tunings[id] = JSON.parse(localStorage.getItem(`chords:song:${id}`) ?? "{}");
+      } catch {
+        /* storage blocked: the sheets go out as written */
+      }
+      const res = await fetch(`/api/playlists/${playlist.id}/pdf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instrument, tunings }),
+      });
+      if (!res.ok) throw new Error("Could not make the PDF");
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${name}.pdf`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not make the PDF");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   async function remove() {
     if (!confirm(`Delete the playlist “${playlist.name}”? The songs stay in the library.`)) return;
     await fetch(`/api/playlists/${playlist.id}`, { method: "DELETE" });
@@ -126,6 +160,16 @@ export function PlaylistView({
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <ThemeToggle />
+          {rows.length > 0 && (
+            <button
+              type="button"
+              onClick={downloadPdf}
+              disabled={exporting}
+              className="rounded-lg px-2 py-1.5 text-[13px] text-muted hover:bg-accent-soft hover:text-ink disabled:opacity-40"
+            >
+              {exporting ? "PDF…" : "PDF"}
+            </button>
+          )}
           <button type="button" onClick={remove} className="rounded-lg px-2 py-1.5 text-[13px] text-muted hover:bg-accent-soft hover:text-ink">
             Delete
           </button>

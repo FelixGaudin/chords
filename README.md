@@ -83,6 +83,8 @@ Reorder it with the arrows, and it becomes a setlist: open a song from a
 playlist and the page knows where it sits in the set, with the previous and
 next song waiting at the bottom of the sheet. Deleting a song from the library
 just drops it out of the playlists that held it.
+*PDF* on a playlist downloads the set as a songbook: a contents page with page
+numbers, then one song per page, each in the key and capo it was last left at.
 
 ### Capo, and what the numbers mean
 
@@ -128,6 +130,8 @@ src/lib/import.ts       fetching and scraping song pages
 src/lib/duplicates.ts   matching an import against the library
 src/lib/db.ts           JSON file storage
 src/lib/playlists.ts    playlists, and a song's place in one
+src/lib/arrange.ts      transpose + capo -> the sheet as played
+src/lib/pdf.ts          playlist -> songbook PDF
 Dockerfile              three-stage build -> standalone server image
 docker-compose.yml      published port + the ./data bind mount
 ```

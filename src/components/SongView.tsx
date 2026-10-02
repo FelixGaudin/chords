@@ -8,8 +8,7 @@ import { ChordPopover } from "./ChordPopover";
 import { ThemeToggle } from "./ThemeToggle";
 import { AddToPlaylist } from "./AddToPlaylist";
 import { INSTRUMENTS, INSTRUMENT_ORDER, InstrumentId } from "@/lib/instruments";
-import { parseChord, preferFlatsForKey, transposeSymbol } from "@/lib/music";
-import { parseSheet, transposeSource } from "@/lib/sheet";
+import { arrangeSong } from "@/lib/arrange";
 import type { Song } from "@/lib/db";
 import type { Setlist } from "@/lib/playlists";
 import { slugify } from "@/lib/slug";
@@ -159,54 +158,17 @@ export function SongView({ song, setlist = null }: { song: Song; setlist?: Setli
     };
   }, [pinned, closeHint]);
 
-  const baseSheet = useMemo(() => parseSheet(song.source), [song.source]);
-
-  // A sheet's printed chords are the shapes you finger, already accounting for
-  // whatever capo it was written for. So the stored key (which is what the
-  // song sounds like) has to come back down by that capo to give the shape key.
-  const baseCapo = song.capo ?? 0;
-  const declaredKey = song.key || baseSheet.meta.key || null;
-  const shapeKeyBase = declaredKey ? transposeSymbol(declaredKey, -baseCapo) : (baseSheet.chords[0] ?? null);
-
-  // A capo is a fretted-instrument device. On a keyboard there's nothing to
-  // clamp, so the piano is always shown at the pitch the song actually sounds
-  // — moving the capo away from the sheet's own only re-fingers the frets.
   const isKeyboard = instrument === "piano";
-  const shapeShift = transpose - (capo - baseCapo);
-  const soundShift = transpose + baseCapo;
-  const shift = isKeyboard ? soundShift : shapeShift;
-
-  const basePc = shapeKeyBase ? (parseChord(shapeKeyBase)?.root ?? null) : null;
-  const mod12 = (n: number) => ((n % 12) + 12) % 12;
-
-  // The sounding key keeps the spelling the source gave it: a song written as
-  // Db shouldn't be relabelled C# just because the shapes are in C.
-  // The source's own spelling only speaks for the key it was written in. Once
-  // transposed, the new key picks its own accidentals — otherwise a song
-  // written in Db would still be calling F# "Gb" two keys later.
-  const soundingFlats = preferFlatsForKey(
-    basePc === null ? null : mod12(basePc + soundShift),
-    transpose === 0 ? (declaredKey ?? shapeKeyBase ?? undefined) : undefined,
-  );
-  const shapeFlats = preferFlatsForKey(
-    basePc === null ? null : mod12(basePc + shapeShift),
-    shapeShift === 0 ? (shapeKeyBase ?? undefined) : undefined,
-  );
-  const preferFlats = isKeyboard ? soundingFlats : shapeFlats;
-
-  const sheet = useMemo(
-    () => parseSheet(transposeSource(song.source, shift, preferFlats)),
-    [song.source, shift, preferFlats],
+  const { sheet, soundingKey, shapeKey, preferFlats, baseCapo } = useMemo(
+    () => arrangeSong(song, { transpose, capo, isKeyboard }),
+    [song, transpose, capo, isKeyboard],
   );
 
   // Changing instrument or key re-renders the sheet, which both renames the
   // chords and detaches the element any hover card is anchored to. Drop it.
   useEffect(() => {
     closeHint();
-  }, [instrument, shift, closeHint]);
-
-  const soundingKey = shapeKeyBase ? transposeSymbol(shapeKeyBase, soundShift, soundingFlats) : null;
-  const shapeKey = shapeKeyBase ? transposeSymbol(shapeKeyBase, shapeShift, shapeFlats) : null;
+  }, [sheet, closeHint]);
 
   useAutoScroll(scrolling, SCROLL_SPEEDS[speedIdx], () => setScrolling(false));
 

@@ -35,6 +35,41 @@ export interface Sheet {
   chords: string[];
 }
 
+export interface Atom {
+  chord: string | null;
+  text: string;
+}
+
+/**
+ * Splits a line into groups that must not break across a wrap. A group holds
+ * exactly one word plus any spacing and chords that belong with it, so a chord
+ * never gets separated from the syllable it sits above.
+ */
+export function groupLine(chunks: Chunk[]): Atom[][] {
+  const atoms: Atom[] = [];
+  for (const c of chunks) {
+    if (c.text === "") {
+      atoms.push({ chord: c.chord, text: "" });
+      continue;
+    }
+    const parts = c.text.match(/\s+|\S+/g) ?? [];
+    parts.forEach((p, i) => atoms.push({ chord: i === 0 ? c.chord : null, text: p }));
+  }
+
+  const groups: Atom[][] = [];
+  let current: Atom[] = [];
+  const hasWord = (g: Atom[]) => g.some((a) => a.text.trim() !== "");
+  for (const a of atoms) {
+    if (a.text.trim() !== "" && hasWord(current)) {
+      groups.push(current);
+      current = [];
+    }
+    current.push(a);
+  }
+  if (current.length) groups.push(current);
+  return groups;
+}
+
 const DIRECTIVE = /^\{\s*([a-zA-Z_]+)\s*(?::\s*([\s\S]*?))?\s*\}$/;
 
 const SECTION_STARTS: Record<string, string> = {
