@@ -110,6 +110,23 @@ export const CANONICAL: Record<string, Record<string, (number | null)[]>> = {
     G: [0, 0, 0, 0, 0],
     C: [0, 2, 0, 1, 2],
   },
+  bouzouki: {
+    // GDAD shapes from the Lacombe Instruments chart.
+    C: [0, 2, 3, 2],
+    Cm: [5, 5, 6, 5],
+    D: [2, 0, 0, 4],
+    Dm: [2, 0, 0, 3],
+    E: [1, 2, 2, 2],
+    Em: [0, 2, 2, 2],
+    F: [2, 3, 3, 3],
+    Fm: [1, 3, 3, 3],
+    G: [0, 0, 2, 0],
+    Gm: [0, 0, 1, 0],
+    A: [2, 2, 4, 2],
+    Am: [2, 2, 3, 2],
+    B: [4, 4, 6, 4],
+    Bm: [4, 0, 2, 4],
+  },
 };
 
 /**
@@ -192,7 +209,22 @@ const MOVABLE_GUITAR: Record<string, Movable[]> = {
   ],
 };
 
-export const MOVABLE: Record<string, Record<string, Movable[]>> = { guitar: MOVABLE_GUITAR };
+// The closed shapes of the GDAD chart (A/Am and F/Fm), slid to every root.
+const MOVABLE_BOUZOUKI: Record<string, Movable[]> = {
+  "0,4,7": [
+    { rootString: 0, frets: [2, 2, 4, 2] },
+    { rootString: 1, frets: [2, 3, 3, 3] },
+  ],
+  "0,3,7": [
+    { rootString: 0, frets: [2, 2, 3, 2] },
+    { rootString: 1, frets: [1, 3, 3, 3] },
+  ],
+};
+
+export const MOVABLE: Record<string, Record<string, Movable[]>> = {
+  guitar: MOVABLE_GUITAR,
+  bouzouki: MOVABLE_BOUZOUKI,
+};
 
 /** The chord's intervals above its root, as a lookup key. */
 export function intervalKey(chord: Chord): string {
@@ -211,8 +243,10 @@ function movableShapes(chord: Chord, inst: FrettedInstrument): (number | null)[]
   for (const form of forms) {
     const home = inst.strings[form.rootString].open + (form.frets[form.rootString] ?? 0);
     const base = ((chord.root - midiToPc(home)) % 12 + 12) % 12;
-    for (const shift of [base, base + 12]) {
+    // A closed form can also slide down toward the nut (bouzouki F 2333 → E 1222).
+    for (const shift of [base - 12, base, base + 12]) {
       const frets = form.frets.map((f) => (f === null ? null : f + shift));
+      if (shift < 0 && frets.some((f) => f !== null && f < 1)) continue;
       if (frets.some((f) => f !== null && f > inst.maxFret)) continue;
       out.push(frets);
     }
@@ -242,20 +276,38 @@ function analyse(frets: (number | null)[], inst: FrettedInstrument) {
     const blocked = frets.slice(from, to + 1).some((f) => f === 0);
     if (!blocked) barre = { fret: baseFret, from, to };
   }
-
-  const fingers = new Array(frets.length).fill(0);
-  let next = 1;
-  if (barre) {
-    for (let i = barre.from; i <= barre.to; i++) if (frets[i] === barre.fret) fingers[i] = 1;
-    next = 2;
+  // On four courses one finger flattening three of them is the usual grip
+  // (bouzouki Em 0222, F 2333, C 0232), and it needn't sit at the lowest fret.
+  if (!barre && frets.length <= 4) {
+    for (const fret of new Set(fretted)) {
+      const on = frets.flatMap((f, i) => (f === fret ? [i] : []));
+      const from = on[0];
+      const to = on[on.length - 1];
+      if (on.length < 2 || to - from < 2) continue;
+      const blocked = frets.slice(from, to + 1).some((f) => f === null || f < fret);
+      if (!blocked) barre = { fret, from, to };
+    }
   }
+
+  // The barre takes one finger, numbered in fret order like the single notes.
+  const fingers = new Array(frets.length).fill(0);
   const remaining = frets
     .map((f, i) => ({ f, i }))
-    .filter((x) => x.f !== null && x.f > 0 && fingers[x.i] === 0)
+    .filter((x) => x.f !== null && x.f > 0 && !(barre && x.f === barre.fret && x.i >= barre.from && x.i <= barre.to))
     .sort((a, b) => (a.f as number) - (b.f as number) || a.i - b.i);
+  let next = 1;
+  let barreDone = !barre;
   for (const r of remaining) {
+    if (!barreDone && barre && barre.fret <= (r.f as number)) {
+      for (let i = barre.from; i <= barre.to; i++) if (frets[i] === barre.fret) fingers[i] = next;
+      next++;
+      barreDone = true;
+    }
     fingers[r.i] = Math.min(next, 4);
     next++;
+  }
+  if (!barreDone && barre) {
+    for (let i = barre.from; i <= barre.to; i++) if (frets[i] === barre.fret) fingers[i] = Math.min(next, 4);
   }
   const fingerCount = barre ? 1 + remaining.length : remaining.length;
 
